@@ -4,6 +4,7 @@ import { errorResponse, requireAdmin } from "@/lib/apiAuth";
 import {
   Employee,
   parseEmployeeInput,
+  removeLegacySalary,
   serializeEmployee,
 } from "@/models/Employee";
 
@@ -13,7 +14,8 @@ export async function GET() {
 
   try {
     await connectDB();
-    const employees = await Employee.find().sort({ fullName: 1 });
+    await removeLegacySalary();
+    const employees = await Employee.find().select("-profileImage").sort({ fullName: 1 });
     return NextResponse.json(employees.map(serializeEmployee));
   } catch (error) {
     return errorResponse(error, "Could not load employees");
@@ -28,6 +30,7 @@ export async function POST(request) {
     const body = await request.json();
     const data = parseEmployeeInput(body);
     await connectDB();
+    await removeLegacySalary();
     const employee = await Employee.create(data);
     return NextResponse.json(serializeEmployee(employee), { status: 201 });
   } catch (error) {

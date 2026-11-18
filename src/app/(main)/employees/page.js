@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import {
   useDeleteEmployeeMutation,
   useGetEmployeesQuery,
@@ -9,7 +10,7 @@ import {
 import { apiErrorMessage, formatDisplayDate } from "@/lib/format";
 
 const controlClassName =
-  "h-8 rounded-md border border-theme-border bg-card px-2.5 text-xs text-foreground outline-none focus:ring-2 focus:ring-primary";
+  "h-9 rounded-md border border-theme-border bg-card px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary";
 
 const PAGE_SIZES = [5, 10, 25, 50];
 
@@ -21,7 +22,8 @@ export default function EmployeesPage() {
   const [status, setStatus] = useState("");
   const [pageSize, setPageSize] = useState(5);
   const [page, setPage] = useState(1);
-  const [deletingId, setDeletingId] = useState("");
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [deleteError, setDeleteError] = useState("");
 
   const departments = useMemo(() => {
     return [...new Set(employees.map((employee) => employee.department).filter(Boolean))].sort();
@@ -60,26 +62,26 @@ export default function EmployeesPage() {
     };
   }
 
-  async function handleDelete(employee) {
-    const confirmed = window.confirm(`Delete ${employee.fullName}?`);
-    if (!confirmed) return;
-    setDeletingId(employee.id);
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    setDeleteError("");
     try {
-      await deleteEmployee(employee.id).unwrap();
-    } catch (deleteError) {
-      window.alert(apiErrorMessage(deleteError, "Could not delete employee"));
-    } finally {
-      setDeletingId("");
+      await deleteEmployee(pendingDelete.id).unwrap();
+      setPendingDelete(null);
+    } catch (failure) {
+      setDeleteError(apiErrorMessage(failure, "Could not delete employee"));
     }
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       <header>
-        <nav className="mb-2 flex items-center gap-1 text-xs text-muted" aria-label="Breadcrumb">
+        <nav className="mb-3 flex items-center gap-1.5 text-sm text-muted" aria-label="Breadcrumb">
           <Link href="/dashboard" className="font-medium text-primary hover:text-primary-hover">
             Dashboard
           </Link>
+          <ChevronIcon />
+          <span>Payroll</span>
           <ChevronIcon />
           <span className="text-foreground">Employees</span>
         </nav>
@@ -92,7 +94,7 @@ export default function EmployeesPage() {
           </div>
           <Link
             href="/employees/new"
-            className="inline-flex shrink-0 items-center rounded-lg bg-primary px-3.5 py-2 text-sm font-medium text-white transition hover:bg-primary-hover"
+            className="inline-flex shrink-0 items-center rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white transition hover:bg-primary-hover"
           >
             Add Employee
           </Link>
@@ -100,8 +102,8 @@ export default function EmployeesPage() {
       </header>
 
       <section className="overflow-hidden rounded-xl border border-theme-border bg-card shadow-sm">
-        <div className="flex flex-col gap-2 border-b border-theme-border px-3 py-2 lg:flex-row lg:items-center lg:justify-between">
-          <label className="flex items-center gap-2 text-xs text-muted">
+        <div className="flex flex-col gap-3 border-b border-theme-border px-4 py-3.5 lg:flex-row lg:items-center lg:justify-between">
+          <label className="flex items-center gap-2 text-sm text-muted">
             Show
             <select
               value={pageSize}
@@ -120,7 +122,7 @@ export default function EmployeesPage() {
             </select>
             entries
           </label>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <select
               value={department}
               onChange={updateFilter(setDepartment)}
@@ -166,55 +168,59 @@ export default function EmployeesPage() {
 
         {pageRows.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] text-left text-[13px]">
-              <thead className="text-[11px] tracking-wide text-muted uppercase">
+            <table className="w-full min-w-[860px] text-left text-sm">
+              <thead className="text-xs tracking-wide text-muted uppercase">
                 <tr className="border-b border-theme-border">
-                  <th className="px-3 py-1.5 font-semibold">Sno.</th>
-                  <th className="px-3 py-1.5 font-semibold">Name</th>
-                  <th className="px-3 py-1.5 font-semibold">Department</th>
-                  <th className="px-3 py-1.5 font-semibold">Designation</th>
-                  <th className="px-3 py-1.5 font-semibold">Joining date</th>
-                  <th className="px-3 py-1.5 font-semibold">Status</th>
-                  <th className="px-3 py-1.5 font-semibold">Action</th>
+                  <th className="px-4 py-3 font-semibold">Sno.</th>
+                  <th className="px-4 py-3 font-semibold">Name</th>
+                  <th className="px-4 py-3 font-semibold">Department</th>
+                  <th className="px-4 py-3 font-semibold">Designation</th>
+                  <th className="px-4 py-3 font-semibold">Joining date</th>
+                  <th className="px-4 py-3 font-semibold">Status</th>
+                  <th className="px-4 py-3 font-semibold">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {pageRows.map((employee, index) => (
                   <tr key={employee.id} className="border-b border-theme-border last:border-b-0">
-                    <td className="px-3 py-1.5 text-muted">{startIndex + index + 1}</td>
-                    <td className="px-3 py-1.5">
+                    <td className="px-4 py-3 text-muted">{startIndex + index + 1}</td>
+                    <td className="px-4 py-3">
                       <p className="font-medium text-foreground">{employee.fullName}</p>
-                      <p className="text-[11px] text-muted">{employee.email}</p>
+                      <p className="text-xs text-muted">{employee.email}</p>
                     </td>
-                    <td className="px-3 py-1.5 text-foreground">{employee.department || "—"}</td>
-                    <td className="px-3 py-1.5 text-foreground">{employee.designation || "—"}</td>
-                    <td className="px-3 py-1.5 text-foreground">
+                    <td className="px-4 py-3 text-foreground">{employee.department || "—"}</td>
+                    <td className="px-4 py-3 text-foreground">{employee.designation || "—"}</td>
+                    <td className="px-4 py-3 text-foreground">
                       {formatDisplayDate(employee.joiningDate)}
                     </td>
-                    <td className="px-3 py-1.5">
+                    <td className="px-4 py-3">
                       <StatusPill status={employee.status} />
                     </td>
-                    <td className="px-3 py-1.5">
+                    <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <Link
                           href={`/employees/${employee.id}`}
-                          className="rounded-md border border-theme-border px-2 py-1 text-[11px] font-medium text-foreground transition hover:bg-sidebar"
+                          aria-label={`View ${employee.fullName}`}
+                          title="View"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-primary text-white transition hover:bg-primary-hover"
                         >
-                          View
+                          <EyeIcon />
                         </Link>
                         <Link
                           href={`/employees/${employee.id}/edit`}
                           aria-label={`Edit ${employee.fullName}`}
                           title="Edit"
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary text-white transition hover:bg-primary-hover"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-primary bg-card text-primary transition hover:bg-primary/10"
                         >
-                          <EyeIcon />
+                          <PencilIcon />
                         </Link>
                         <button
                           type="button"
-                          onClick={() => handleDelete(employee)}
-                          disabled={deleting && deletingId === employee.id}
-                          className="rounded-md px-2 py-1 text-[11px] font-medium text-absent disabled:opacity-50"
+                          onClick={() => {
+                            setDeleteError("");
+                            setPendingDelete(employee);
+                          }}
+                          className="rounded-md px-2.5 py-1.5 text-xs font-medium text-absent"
                         >
                           Delete
                         </button>
@@ -227,7 +233,7 @@ export default function EmployeesPage() {
           </div>
         ) : null}
 
-        <div className="flex flex-col gap-2 border-t border-theme-border px-3 py-2 text-xs text-muted sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 border-t border-theme-border px-4 py-3.5 text-sm text-muted sm:flex-row sm:items-center sm:justify-between">
           <p>
             Showing {showingFrom} to {showingTo} of {filtered.length} entries
           </p>
@@ -243,8 +249,8 @@ export default function EmployeesPage() {
                 aria-current={number === page ? "page" : undefined}
                 className={
                   number === page
-                    ? "h-7 min-w-7 rounded-md bg-primary px-2 text-xs font-medium text-white"
-                    : "h-7 min-w-7 rounded-md px-2 text-xs font-medium text-foreground hover:bg-sidebar"
+                    ? "h-8 min-w-8 rounded-md bg-primary px-2.5 text-sm font-medium text-white"
+                    : "h-8 min-w-8 rounded-md px-2.5 text-sm font-medium text-foreground hover:bg-sidebar"
                 }
               >
                 {number}
@@ -259,6 +265,19 @@ export default function EmployeesPage() {
           </div>
         </div>
       </section>
+
+      {pendingDelete ? (
+        <ConfirmDialog
+          title={`Delete ${pendingDelete.fullName}?`}
+          message="This removes the employee and their attendance. This cannot be undone."
+          error={deleteError}
+          pending={deleting}
+          onCancel={() => {
+            if (!deleting) setPendingDelete(null);
+          }}
+          onConfirm={confirmDelete}
+        />
+      ) : null}
     </div>
   );
 }
@@ -277,8 +296,8 @@ function StatusPill({ status }) {
     <span
       className={
         active
-          ? "inline-flex rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-medium text-success"
-          : "inline-flex rounded-full bg-muted/10 px-2 py-0.5 text-[11px] font-medium text-muted"
+          ? "inline-flex rounded-full bg-success/10 px-2.5 py-1 text-xs font-medium text-success"
+          : "inline-flex rounded-full bg-muted/10 px-2.5 py-1 text-xs font-medium text-muted"
       }
     >
       {active ? "Active" : "Inactive"}
@@ -292,7 +311,7 @@ function PagerButton({ children, disabled, onClick }) {
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="rounded-md px-2 py-1 text-xs font-medium text-foreground transition hover:bg-sidebar disabled:cursor-not-allowed disabled:opacity-40"
+      className="rounded-md px-2.5 py-1.5 text-sm font-medium text-foreground transition hover:bg-sidebar disabled:cursor-not-allowed disabled:opacity-40"
     >
       {children}
     </button>
@@ -304,6 +323,15 @@ function EyeIcon() {
     <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
       <path strokeLinecap="round" strokeLinejoin="round" d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
       <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 20h9" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4 11.5-11.5z" />
     </svg>
   );
 }

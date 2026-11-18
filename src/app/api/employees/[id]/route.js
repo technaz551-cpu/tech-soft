@@ -6,6 +6,7 @@ import { Attendance } from "@/models/Attendance";
 import {
   Employee,
   parseEmployeeInput,
+  removeLegacySalary,
   serializeEmployee,
 } from "@/models/Employee";
 
@@ -25,6 +26,7 @@ export async function GET(_request, { params }) {
     if (!mongoose.Types.ObjectId.isValid(id)) return invalidId();
 
     await connectDB();
+    await removeLegacySalary();
     const employee = await Employee.findById(id);
     if (!employee) return invalidId();
     return NextResponse.json(serializeEmployee(employee));
@@ -43,10 +45,12 @@ export async function PATCH(request, { params }) {
 
     const data = parseEmployeeInput(await request.json());
     await connectDB();
-    const employee = await Employee.findByIdAndUpdate(id, data, {
-      new: true,
-      runValidators: true,
-    });
+    await removeLegacySalary();
+    const employee = await Employee.findByIdAndUpdate(
+      id,
+      { $set: data, $unset: { salary: "" } },
+      { new: true, runValidators: true },
+    );
     if (!employee) return invalidId();
     return NextResponse.json(serializeEmployee(employee));
   } catch (error) {

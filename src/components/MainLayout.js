@@ -49,7 +49,7 @@ const PAGE_META = [
   {
     test: (path) => path === "/dashboard",
     title: "Dashboard",
-    subtitle: "Today’s attendance and a snapshot of the team",
+    subtitle: "Today’s overview and quick insights",
   },
   {
     test: (path) => path === "/employees",
@@ -77,14 +77,29 @@ const PAGE_META = [
     subtitle: "Pick a date, mark people in bulk, then save or update a row",
   },
   {
+    test: (path) => path.startsWith("/income/"),
+    title: "Income details",
+    subtitle: "Saved income record",
+  },
+  {
     test: (path) => path === "/income",
     title: "Income",
     subtitle: "Money coming into the account",
   },
   {
+    test: (path) => path.startsWith("/expenses/"),
+    title: "Expense details",
+    subtitle: "Saved expense record",
+  },
+  {
     test: (path) => path === "/expenses",
     title: "Expenses",
     subtitle: "Money spent by the business",
+  },
+  {
+    test: (path) => path.startsWith("/budget/"),
+    title: "Budget details",
+    subtitle: "Saved budget record",
   },
   {
     test: (path) => path === "/budget",
@@ -125,6 +140,13 @@ export default function MainLayout({ children }) {
     title: "Technaz",
     subtitle: "Admin workspace",
   };
+
+  const compactTitle =
+    pathname === "/income" ||
+    pathname === "/expenses" ||
+    pathname === "/budget" ||
+    pathname === "/reports/employee-attendance" ||
+    pathname === "/reports/income-report";
 
   function toggleMenu(id) {
     setOpenMenus((prev) => {
@@ -223,27 +245,31 @@ export default function MainLayout({ children }) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-10 flex items-center justify-end gap-4 border-b border-theme-border bg-card px-6 py-3">
-          {pathname === "/employees" ? null : (
-            <div className="mr-auto min-w-0">
-              <h1 className="truncate text-xl font-semibold text-foreground">
+        <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-theme-border bg-background px-6 py-4">
+          <div className="flex min-w-0 items-center gap-3">
+            {compactTitle ? (
+              <h1 className="truncate text-base font-semibold text-foreground">
                 {page.title}
               </h1>
-              <p className="truncate text-sm text-muted">{page.subtitle}</p>
-            </div>
-          )}
+            ) : (
+              <div className="min-w-0">
+                <h1 className="truncate text-xl font-semibold text-foreground">
+                  {page.title}
+                </h1>
+                <p className="truncate text-sm text-muted">{page.subtitle}</p>
+              </div>
+            )}
+          </div>
           <button
             type="button"
             onClick={handleLogout}
             disabled={loggingOut}
-            className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-hover disabled:opacity-60"
+            className="rounded-lg px-3 py-2 text-sm font-medium text-foreground transition hover:bg-primary/10 disabled:opacity-60"
           >
-            {loggingOut ? "Signing out…" : "Log out"}
+            {loggingOut ? "Logging out..." : "Logout"}
           </button>
         </header>
-        <div className={pathname === "/employees" ? "flex-1 px-6 py-5" : "flex-1 p-6"}>
-          {children}
-        </div>
+        <div className="flex-1 p-6">{children}</div>
       </div>
     </div>
   );

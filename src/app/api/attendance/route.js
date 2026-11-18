@@ -5,6 +5,7 @@ import { errorResponse, requireAdmin } from "@/lib/apiAuth";
 import {
   Attendance,
   isDateKey,
+  parseAttendanceEntry,
   serializeAttendance,
 } from "@/models/Attendance";
 import { Employee } from "@/models/Employee";
@@ -17,16 +18,23 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const date = searchParams.get("date");
     const employeeId = searchParams.get("employeeId");
+    const month = searchParams.get("month");
 
-    if (!date && !employeeId) {
+    if (!date && !employeeId && !month) {
       return NextResponse.json(
-        { ok: false, error: "Provide a date or an employee" },
+        { ok: false, error: "Provide a date, a month, or an employee" },
         { status: 400 },
       );
     }
     if (date && !isDateKey(date)) {
       return NextResponse.json(
         { ok: false, error: "Date must be YYYY-MM-DD" },
+        { status: 400 },
+      );
+    }
+    if (month && !/^\d{4}-\d{2}$/.test(month)) {
+      return NextResponse.json(
+        { ok: false, error: "Month must be YYYY-MM" },
         { status: 400 },
       );
     }
@@ -40,6 +48,7 @@ export async function GET(request) {
     await connectDB();
     const filter = {};
     if (date) filter.date = date;
+    else if (month) filter.date = { $gte: `${month}-01`, $lte: `${month}-31` };
     if (employeeId) filter.employee = employeeId;
 
     const records = await Attendance.find(filter).sort({ date: -1 });
@@ -77,24 +86,11 @@ export async function PUT(request) {
 
     const operations = [];
     for (const entry of entries) {
-      const employeeId = String(entry?.employeeId || "");
-      const status = entry?.status;
-      if (!mongoose.Types.ObjectId.isValid(employeeId)) {
-        return NextResponse.json(
-          { ok: false, error: "One of the employees is invalid" },
-          { status: 400 },
-        );
-      }
-      if (status !== "present" && status !== "absent") {
-        return NextResponse.json(
-          { ok: false, error: "Status must be present or absent" },
-          { status: 400 },
-        );
-      }
+      const { employeeId, status, note } = parseAttendanceEntry(entry);
       operations.push({
         updateOne: {
           filter: { employee: employeeId, date },
-          update: { $set: { employee: employeeId, date, status } },
+          update: { $set: { employee: employeeId, date, status, note } },
           upsert: true,
         },
       });
